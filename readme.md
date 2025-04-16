@@ -69,3 +69,73 @@ This project is a Flask-based web application designed to manage student lunches
 10. Manage lunches:
     - Assign lunches to students using the `/request_lunch` endpoint.
     - Track and export lunch history using the `/lunch` and `/give_lunch` endpoints.
+
+## API Endpoints
+
+### 1. `/upload` (POST)
+- **Description**: Upload an Excel file to update lunch data.
+- **Request**:
+  - Content-Type: `multipart/form-data`
+  - File: `.xlsx` file containing lunch data.
+- **Response**:
+  - `200 OK`: File processed and database updated successfully.
+  - `400 Bad Request`: Invalid file type.
+  - `500 Internal Server Error`: Error during file processing.
+
+### 2. `/lunch` (POST)
+- **Description**: Retrieve and assign a lunch to a student using their card UID.
+- **Request**:
+  - Content-Type: `application/json`
+  - Body:
+    ```json
+    {
+      "card_uid": "<hashed_card_uid>"
+    }
+    ```
+- **Response**:
+  - `200 OK`: Lunch assigned successfully.
+  - `400 Bad Request`: Missing `card_uid`.
+  - `404 Not Found`: Student or lunch data not found.
+
+### 3. `/lunches` (GET)
+- **Description**: Retrieve all available lunches and their quantities.
+- **Response**:
+  - `200 OK`: JSON object with lunch IDs and quantities.
+
+### 4. `/give_lunch` (POST)
+- **Description**: Mark a lunch as given to the authenticated student.
+- **Authentication**: Requires Google OAuth token.
+- **Response**:
+  - `200 OK`: Lunch given successfully.
+  - `404 Not Found`: No lunch found for the user.
+
+### 5. `/request_lunch` (POST)
+- **Description**: Request a specific lunch for the authenticated student.
+- **Authentication**: Requires Google OAuth token.
+- **Request**:
+  - Content-Type: `application/json`
+  - Body:
+    ```json
+    {
+      "lunch_id": "<lunch_id>"
+    }
+    ```
+- **Response**:
+  - `200 OK`: Lunch assigned successfully.
+  - `400 Bad Request`: Missing `lunch_id` or student already has a lunch.
+  - `404 Not Found`: Requested lunch is not available.
+
+### 6. `/login` (GET)
+- **Description**: Redirect to Google OAuth for user authentication.
+- **Response**:
+  - Redirects to Google Sign-In page.
+
+### 7. `/authorize` (GET)
+- **Description**: Handle Google OAuth callback and create a student if not already registered.
+- **Response**:
+  - `200 OK`: JSON object with user information.
+
+### 8. `/logout` (GET)
+- **Description**: Log out the authenticated user.
+- **Response**:
+  - Redirects to the `/login` page.
