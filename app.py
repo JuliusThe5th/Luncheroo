@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, redirect, url_for, session
+from flask import Flask, request, jsonify, redirect, url_for, session, render_template
 from models import db, Student, TodayLunch, AvailableLunch, GivenLunch
 from flask_migrate import Migrate
 from pyngrok import ngrok, conf
@@ -20,6 +20,7 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['SESSION_TYPE'] = 'filesystem'
 
 # Initialize the database
 db.init_app(app)
@@ -79,6 +80,17 @@ def assign_card_uid_by_id(student_id, card_uid):
     student.card_id = hashed_card_uid
     db.session.commit()
     return {'message': f'Card UID assigned to student with ID {student_id} successfully'}
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/dashboard', methods=['GET'])
+def dashboard():
+    token = request.args.get('token')
+    if not token:
+        return "Access token is missing", 400
+    return f"Welcome to the dashboard! Your token: {token}"
 
 # Route to upload Excel file
 @app.route('/upload', methods=['POST'])
@@ -271,7 +283,7 @@ def request_lunch():
 @app.route('/login', methods=['GET'])
 def login():
     redirect_uri = url_for('authorize', _external=True)
-    return google.authorize_redirect(redirect_uri)
+    return google.authorize_redirect(redirect_uri, prompt='select_account')
 
 @app.route('/authorize')
 def authorize():
@@ -287,12 +299,14 @@ def authorize():
         db.session.commit()
 
     session['user'] = user_info
-    return jsonify(user_info)
+
+    # Render the dashboard.html template
+    return render_template('dashboard.html', user=user_info)
 
 @app.route('/logout')
 def logout():
     session.pop('user', None)
-    return redirect(url_for('login'))
+    return redirect(url_for('index'))
 
 # Start ngrok tunnel
 public_url = ngrok.connect(addr="http://127.0.0.1:5000", domain="lamb-kind-preferably.ngrok-free.app")
