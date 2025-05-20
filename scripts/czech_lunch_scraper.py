@@ -127,32 +127,44 @@ def save_to_db(student_data):
     )
     conn.commit()
     conn.close()
+    print(f"Saved {len(student_data)} students to database")
+
+def cleanup_pdfs():
+    """Delete processed PDFs"""
+    pdf_dir = "icanteen_pdfs"
+    if os.path.exists(pdf_dir):
+        for file in os.listdir(pdf_dir):
+            if file.endswith('.pdf'):
+                os.remove(os.path.join(pdf_dir, file))
+        print("Cleaned up PDF files")
 
 def main():
-    print("Stahuji PDF...")
-    pdfs = fetch_today_icanteen_pdfs()
-    if not pdfs:
-        print("Žádné PDF nenalezeno.")
-        return
-
-    all_student_data = []
-    for pdf_path in pdfs:
-        print(f"\nZpracovávám {pdf_path}...")
-        student_data = parse_pdf_data(pdf_path)
-        print(f"Extracted from {pdf_path}: {len(student_data)} records")
-        if student_data:
-            all_student_data.extend(student_data)
-            print(f"Total records so far: {len(all_student_data)}")
-        else:
-            print("No student data found in this PDF.")
-
-    if all_student_data:
-        save_to_db(all_student_data)
-        print(f"\nSaved {len(all_student_data)} total records to database.")
-    else:
-        print("No student data found in any PDF.")
-
-    print("Hotovo.")
+    try:
+        # Create PDF directory if it doesn't exist
+        os.makedirs("icanteen_pdfs", exist_ok=True)
+        
+        # Fetch PDFs
+        pdf_files = fetch_today_icanteen_pdfs()
+        if not pdf_files:
+            print("No PDFs found for today")
+            return
+        
+        # Process all PDFs
+        all_students = []
+        for pdf_file in pdf_files:
+            students = parse_pdf_data(pdf_file)
+            all_students.extend(students)
+        
+        # Save to database
+        save_to_db(all_students)
+        
+        # Clean up PDFs after successful processing
+        cleanup_pdfs()
+        
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
 
 if __name__ == "__main__":
     main() 
