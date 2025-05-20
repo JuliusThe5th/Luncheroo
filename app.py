@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 import sqlite3
 from datetime import datetime
+from pyngrok import ngrok, conf
 
 # Load environment variables
 load_dotenv()
@@ -18,6 +19,13 @@ app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Kill any existing ngrok tunnels
+ngrok.kill()
+
+# Start ngrok tunnel
+public_url = ngrok.connect(addr="http://127.0.0.1:5000", domain="lamb-kind-preferably.ngrok-free.app")
+print(f" * ngrok tunnel \"{public_url}\" -> \"http://127.0.0.1:5000\"")
 
 def get_db():
     """Get database connection"""
@@ -264,9 +272,8 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
-# Initialize database when app starts
-with app.app_context():
-    init_db()
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    with app.app_context():
+        init_db()  # Initialize database once when app starts
+
+    app.run(debug=True, use_reloader=False)
