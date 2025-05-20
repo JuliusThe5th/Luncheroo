@@ -14,6 +14,7 @@ __pycache__/
 
 # Uploaded files
 uploads/
+icanteen_pdfs/
 
 # Ngrok configuration
 *.ngrok.log
