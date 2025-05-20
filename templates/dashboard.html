@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Dashboard - Luncheroo</title>
+    <style>
+        .dashboard-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .user-info {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .lunch-section {
+            margin-bottom: 30px;
+        }
+        .list-group-item {
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .list-group-item:hover {
+            background-color: #f8f9fa;
+        }
+        .badge {
+            font-size: 0.9em;
+        }
+        .gsi-material-button {
+            -moz-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            -webkit-appearance: none;
+            background-color: WHITE;
+            background-image: none;
+            border: 1px solid #747775;
+            border-radius: 4px;
+            box-sizing: border-box;
+            color: #1f1f1f;
+            cursor: pointer;
+            font-family: 'Roboto', arial, sans-serif;
+            font-size: 14px;
+            height: 40px;
+            letter-spacing: 0.25px;
+            outline: none;
+            overflow: hidden;
+            padding: 0 12px;
+            position: relative;
+            text-align: center;
+            transition: background-color .218s, border-color .218s, box-shadow .218s;
+            vertical-align: middle;
+            white-space: nowrap;
+            width: auto;
+            max-width: 400px;
+            min-width: 200px;
+        }
+
+        .gsi-material-button .gsi-material-button-icon {
+            height: 20px;
+            margin-right: 12px;
+            min-width: 20px;
+            width: 20px;
+        }
+
+        .gsi-material-button .gsi-material-button-contents {
+            flex-grow: 1;
+            font-family: 'Roboto', arial, sans-serif;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: top;
+        }
+
+        .gsi-material-button .gsi-material-button-state {
+            bottom: 0;
+            left: 0;
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+
+        .gsi-material-button .gsi-material-button-contents {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gsi-material-button:disabled {
+            cursor: default;
+            background-color: #ffffff61;
+            border-color: #1f1f1f1f;
+        }
+
+        .gsi-material-button:disabled .gsi-material-button-contents {
+            opacity: 38%;
+        }
+
+        .gsi-material-button:disabled .gsi-material-button-icon {
+            opacity: 38%;
+        }
+
+        .gsi-material-button:not(:disabled):active .gsi-material-button-state, 
+        .gsi-material-button:not(:disabled):focus .gsi-material-button-state {
+            background-color: #303030;
+            opacity: 12%;
+        }
+
+        .gsi-material-button:not(:disabled):hover {
+            box-shadow: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+        }
+
+        .gsi-material-button:not(:disabled):hover .gsi-material-button-state {
+            background-color: #303030;
+            opacity: 8%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='images/logo-no-background.png') }}" alt="Logo" style="height: 95px;">
+    </header>
+
+    <main>
+        <div class="dashboard-container">
+            <div class="user-info">
+                <h2>Welcome, {{ user.name }}!</h2>
+                <p class="text-muted">{{ user.email }}</p>
+            </div>
+
+            <div class="lunch-section">
+                <h3>Your Lunch</h3>
+                <div id="lunch-info" class="alert alert-info">
+                    Loading your lunch information...
+                </div>
+            </div>
+
+            <div class="lunch-section">
+                <h3>Available Lunches</h3>
+                <div id="available-lunches" class="list-group">
+                    Loading available lunches...
+                </div>
+            </div>
+
+            <button class="gsi-material-button" onclick="window.location.href='{{ url_for('auth.logout') }}'">
+                <div class="gsi-material-button-state"></div>
+                <div class="gsi-material-button-content-wrapper">
+                    <div class="gsi-material-button-icon">
+                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" xmlns:xlink="http://www.w3.org/1999/xlink" style="display: block;">
+                            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                            <path fill="none" d="M0 0h48v48H0z"></path>
+                        </svg>
+                    </div>
+                    <span class="gsi-material-button-contents">Logout</span>
+                    <span style="display: none;">Logout</span>
+                </div>
+            </button>
+        </div>
+    </main>
+
+    <footer>
+        &copy; 2025 Lunch Management System
+    </footer>
+
+    <script>
+        // Function to fetch and display lunch information
+        async function fetchLunchInfo() {
+            try {
+                const response = await fetch('/lunches', {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`
+                    }
+                });
+                const data = await response.json();
+                
+                // Update user's lunch information
+                const lunchInfoContainer = document.getElementById('lunch-info');
+                if (data.user_lunch) {
+                    lunchInfoContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>Your Lunch:</strong> ${data.user_lunch}
+                        </div>
+                    `;
+                } else {
+                    lunchInfoContainer.innerHTML = `
+                        <div class="alert alert-warning">
+                            You haven't requested a lunch yet. Select one from below!
+                        </div>
+                    `;
+                }
+                
+                // Update available lunches
+                const lunchesContainer = document.getElementById('available-lunches');
+                lunchesContainer.innerHTML = '';
+                
+                if (Object.keys(data.available_lunches).length === 0) {
+                    lunchesContainer.innerHTML = `
+                        <div class="alert alert-info">
+                            No lunches available at the moment.
+                        </div>
+                    `;
+                    return;
+                }
+                
+                for (const [lunchId, quantity] of Object.entries(data.available_lunches)) {
+                    const lunchElement = document.createElement('button');
+                    lunchElement.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                    lunchElement.innerHTML = `
+                        ${lunchId}
+                        <span class="badge bg-primary rounded-pill">${quantity} available</span>
+                    `;
+                    lunchElement.onclick = () => requestLunch(lunchId);
+                    lunchesContainer.appendChild(lunchElement);
+                }
+            } catch (error) {
+                console.error('Error fetching lunch information:', error);
+                document.getElementById('lunch-info').innerHTML = `
+                    <div class="alert alert-danger">
+                        Error loading lunch information. Please try again later.
+                    </div>
+                `;
+                document.getElementById('available-lunches').innerHTML = `
+                    <div class="alert alert-danger">
+                        Error loading available lunches. Please try again later.
+                    </div>
+                `;
+            }
+        }
+
+        // Function to request a lunch
+        async function requestLunch(lunchId) {
+            try {
+                const response = await fetch('/request_lunch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
+                    },
+                    body: JSON.stringify({ lunch_id: lunchId })
+                });
+                
+                if (response.ok) {
+                    alert('Lunch requested successfully!');
+                    fetchLunchInfo(); // Refresh the lunch information
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Failed to request lunch');
+                }
+            } catch (error) {
+                console.error('Error requesting lunch:', error);
+                alert('Failed to request lunch');
+            }
+        }
+
+        // Function to get the token from URL
+        function getToken() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('token');
+        }
+
+        // Fetch lunch information when the page loads
+        document.addEventListener('DOMContentLoaded', fetchLunchInfo);
+    </script>
+</body>
+</html> 
