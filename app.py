@@ -29,7 +29,10 @@ print(f" * ngrok tunnel \"{public_url}\" -> \"http://127.0.0.1:5000\"")
 
 def get_db():
     """Get database connection"""
-    conn = sqlite3.connect('icanteen.db')
+    # Ensure instance folder exists
+    os.makedirs(app.instance_path, exist_ok=True)
+    db_path = os.path.join(app.instance_path, 'icanteen.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
