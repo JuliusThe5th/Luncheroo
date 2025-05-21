@@ -11,7 +11,9 @@ EMAIL_USER = "obidky@gmail.com"
 EMAIL_PASS = "xrru qiwr iwdd ajlp"
 IMAP_SERVER = "imap.gmail.com"
 SAVE_FOLDER = "icanteen_pdfs"
-DB_PATH = "icanteen.db"
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'instance', 'icanteen.db')
+DB_PATH = os.path.abspath(DB_PATH)
+
 
 def fetch_today_icanteen_pdfs():
     if not os.path.exists(SAVE_FOLDER):
@@ -40,7 +42,7 @@ def fetch_today_icanteen_pdfs():
         subject = email.header.decode_header(msg["Subject"])[0][0]
         if isinstance(subject, bytes):
             subject = subject.decode("utf-8", errors="ignore")
-        
+
         print(f"Found email with subject: {subject}")
         if "Přehled objednaných jídel" not in subject:
             continue
@@ -62,11 +64,12 @@ def fetch_today_icanteen_pdfs():
                     f.write(part.get_payload(decode=True))
                 pdf_files.append(filepath)
                 print(f"Saved PDF #{pdf_count}: {filename}")
-    
+
     print(f"\nTotal emails processed: {email_count}")
     print(f"Total PDFs found: {len(pdf_files)}")
     mail.logout()
     return pdf_files
+
 
 def parse_pdf_data(pdf_path):
     students = []
@@ -96,19 +99,20 @@ def parse_pdf_data(pdf_path):
                     students.append((jmeno, o1, o2, o3, datum))
     return students
 
+
 def save_to_db(student_data):
     """
     Saves a list of student meal records to the SQLite database.
     Each record should be a tuple: (jmeno, obed_1, obed_2, obed_3, datum)
     """
+    db_dir = os.path.dirname(DB_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    
-    # Clear existing data for today
-    today = datetime.now().strftime("%Y-%m-%d")
-    c.execute("DELETE FROM obed WHERE datum = ?", (today,))
-    
-    # Create table if it doesn't exist
+
+    # Create obed table if it doesn't exist
     c.execute("""
         CREATE TABLE IF NOT EXISTS obed (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,7 +123,20 @@ def save_to_db(student_data):
             datum TEXT
         )
     """)
-    
+
+    # Create students table if it doesn't exist
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            card_id TEXT UNIQUE NOT NULL
+        )
+    """)
+
+    # Clear existing data for today
+    today = datetime.now().strftime("%Y-%m-%d")
+    c.execute("DELETE FROM obed WHERE datum = ?", (today,))
+
     # Insert new data
     c.executemany(
         "INSERT INTO obed (jmeno, obed_1, obed_2, obed_3, datum) VALUES (?, ?, ?, ?, ?)",
@@ -128,6 +145,7 @@ def save_to_db(student_data):
     conn.commit()
     conn.close()
     print(f"Saved {len(student_data)} students to database")
+
 
 def cleanup_pdfs():
     """Delete processed PDFs"""
@@ -138,33 +156,35 @@ def cleanup_pdfs():
                 os.remove(os.path.join(pdf_dir, file))
         print("Cleaned up PDF files")
 
+
 def main():
     try:
         # Create PDF directory if it doesn't exist
         os.makedirs("icanteen_pdfs", exist_ok=True)
-        
+
         # Fetch PDFs
         pdf_files = fetch_today_icanteen_pdfs()
         if not pdf_files:
             print("No PDFs found for today")
             return
-        
+
         # Process all PDFs
         all_students = []
         for pdf_file in pdf_files:
             students = parse_pdf_data(pdf_file)
             all_students.extend(students)
-        
+
         # Save to database
         save_to_db(all_students)
-        
+
         # Clean up PDFs after successful processing
         cleanup_pdfs()
-        
+
     except Exception as e:
         print(f"Error: {str(e)}")
         import traceback
         print(traceback.format_exc())
 
+
 if __name__ == "__main__":
-    main() 
+    main()

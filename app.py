@@ -14,6 +14,7 @@ from smartcard.util import toHexString
 import hashlib
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
+from scripts.czech_lunch_scraper import main as scrape_lunch_pdfs
 
 # Load environment variables
 load_dotenv()
@@ -167,8 +168,7 @@ def init_db():
     """Initialize the database with required tables"""
     conn = get_db()
     c = conn.cursor()
-    
-    # Create obed table if it doesn't exist - matching the working script's structure
+    # Create obed table
     c.execute('''
         CREATE TABLE IF NOT EXISTS obed (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -179,7 +179,14 @@ def init_db():
             datum TEXT
         )
     ''')
-    
+    # Create students table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            card_id TEXT UNIQUE NOT NULL
+        )
+    ''')
     conn.commit()
     conn.close()
     print("Database initialized successfully")
@@ -468,17 +475,6 @@ def assign_card():
 if __name__ == '__main__':
     with app.app_context():
         init_db()
-        # Create students table if it doesn't exist
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS students (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                card_id TEXT UNIQUE NOT NULL
-            )
-        ''')
-        conn.commit()
-        conn.close()
-
+    # Scrape PDFs and update the database after tables are created
+    scrape_lunch_pdfs()
     socketio.run(app, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
