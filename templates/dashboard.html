@@ -3,122 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <title>Dashboard - Luncheroo!</title>
-    <style>
-        body {
-            font-family: 'Roboto', Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f9;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        header {
-            background-color: #ff6c6c;
-            color: white;
-            padding: 1.5rem 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        .logo {
-            height: 95px;
-            transition: transform 0.3s ease;
-        }
-        .logo:hover {
-            transform: scale(1.05);
-        }
-        main {
-            padding: 2rem;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .welcome-section {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-        }
-        .lunch-section {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        .lunch-status {
-            font-size: 1.2rem;
-            margin: 1rem 0;
-            padding: 1rem;
-            border-radius: 5px;
-        }
-        .has-lunch {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-        }
-        .no-lunch {
-            background-color: #ffebee;
-            color: #c62828;
-        }
-        .lunch-number {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #ff6c6c;
-            margin: 1rem 0;
-        }
-        .button {
-            text-decoration: none;
-            color: white;
-            background-color: #f46a6a;
-            padding: 0.8rem 1.5rem;
-            border-radius: 5px;
-            display: inline-block;
-            transition: background-color 0.3s;
-        }
-        .button:hover {
-            background-color: #ff5252;
-        }
-        footer {
-            margin-top: 2rem;
-            font-size: 0.9rem;
-            color: #555;
-            text-align: center;
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-    <header>
-        <img src="{{ url_for('static', filename='images/logo-no-background.png') }}" alt="Logo" class="logo">
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <header class="bg-red-400 py-6 shadow text-center">
+        <img src="{{ url_for('static', filename='images/logo-no-background.png') }}" alt="Logo" class="h-24 mx-auto transition-transform duration-300 hover:scale-105">
     </header>
-    <main>
-        <div class="welcome-section">
-            <h2>Welcome, {{ user.name }}!</h2>
-            <p>Here's your lunch information for today.</p>
-        </div>
-        
-        <div class="lunch-section">
-            {% if lunch_info.has_lunch %}
-                <div class="lunch-status has-lunch">
-                    You have a lunch ordered for today!
-                </div>
-                <div class="lunch-number">
-                    Lunch #{{ lunch_info.lunch_number }}
-                </div>
-            {% else %}
-                <div class="lunch-status no-lunch">
-                    You don't have a lunch ordered for today.
-                </div>
-            {% endif %}
-        </div>
-        
-        <div style="text-align: center; margin-top: 2rem;">
-            <a href="/logout" class="button">Logout</a>
+    <main class="flex-1 flex flex-col items-center px-4 py-8">
+        <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-xl mb-8">
+            <h2 class="text-2xl font-bold mb-2 text-center">Welcome, {{ user.name }}!</h2>
+            <p class="text-gray-600 text-center mb-6">Here's your lunch information for today.</p>
+            <div class="mb-6">
+                {% if lunch_info.has_lunch %}
+                    <div class="bg-green-100 text-green-800 text-center rounded-lg p-4 mb-4 font-semibold">
+                        You have lunch ordered for today!
+                    </div>
+                    <div class="text-3xl font-bold text-red-400 text-center mb-2">
+                        Lunch #{{ lunch_info.lunch_number }}
+                    </div>
+                {% else %}
+                    <div class="bg-red-100 text-red-700 text-center rounded-lg p-4 mb-4 font-semibold">
+                        You don't have lunch ordered for today.
+                    </div>
+                {% endif %}
+            </div>
+            <div class="text-center">
+                <a href="{{ url_for('gift_lunch') }}" class="inline-block bg-blue-400 text-white px-6 py-2 rounded-lg font-medium shadow hover:bg-blue-500 transition mt-4">
+                    Gift your Lunch
+                </a>
+                <a href="/logout" class="inline-block bg-red-400 text-white px-6 py-2 rounded-lg font-medium shadow hover:bg-red-500 transition">
+                    Logout
+                </a>
+            </div>
         </div>
     </main>
-    <footer>
-        &copy; 2025 Luncheroo, with cooperation with ITG
+    <footer class="bg-white text-gray-500 text-center py-4 shadow-inner">
+        &copy; 2025 Luncheroo, in cooperation with ITG
     </footer>
 </body>
 </html>

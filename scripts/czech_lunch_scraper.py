@@ -5,14 +5,17 @@ import pdfplumber
 import sqlite3
 import re
 from datetime import datetime
+from dotenv import load_dotenv
 
 # --- CONFIGURATION ---
-EMAIL_USER = "obidky@gmail.com"
-EMAIL_PASS = "xrru qiwr iwdd ajlp"
-IMAP_SERVER = "imap.gmail.com"
-SAVE_FOLDER = "icanteen_pdfs"
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'instance', 'icanteen.db')
-DB_PATH = os.path.abspath(DB_PATH)
+
+load_dotenv()
+
+EMAIL_USER = os.getenv('EMAIL_USER')
+EMAIL_PASS = os.getenv('EMAIL_PASS')
+IMAP_SERVER = os.getenv('IMAP_SERVER')
+SAVE_FOLDER = os.getenv('SAVE_FOLDER')
+DB_PATH = os.path.abspath(os.getenv('DB_PATH'))
 
 
 def fetch_today_icanteen_pdfs():

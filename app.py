@@ -15,6 +15,7 @@ import hashlib
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 from scripts.czech_lunch_scraper import main as scrape_lunch_pdfs
+from sqlite3 import IntegrityError
 
 # Load environment variables
 load_dotenv()
@@ -42,9 +43,7 @@ print(f" * ngrok tunnel \"{public_url}\" -> \"http://127.0.0.1:5000\"")
 scanned_card_uid = None
 
 # Add these constants after other app configurations
-ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD_HASH = os.getenv('ADMIN_PASSWORD_HASH', generate_password_hash('admin123'))  # Change this in production!
-ALLOWED_ADMIN_EMAILS = ["1143@student.itgymnazium.cz"]
+ALLOWED_ADMIN_EMAILS = os.getenv('ALLOWED_ADMIN_EMAILS', '').split(',')
 
 def admin_required(f):
     @wraps(f)
@@ -53,6 +52,7 @@ def admin_required(f):
             return redirect(url_for('index'))
         return f(*args, **kwargs)
     return decorated_function
+
 
 def nfc_card_scanner():
     """Continuously scans for NFC cards and emits event via WebSocket."""
@@ -83,17 +83,16 @@ def nfc_card_scanner():
                     with app.app_context():
                         conn = get_db()
                         c = conn.cursor()
-                        
+
                         # Get student info
                         c.execute("SELECT * FROM students WHERE card_id = ?", (hashed_uid,))
                         student = c.fetchone()
-                        
+
                         if student:
-                            # Get today's lunch info for this student
                             today = datetime.now().strftime("%Y-%m-%d")
                             c.execute("SELECT * FROM obed WHERE jmeno = ? AND datum = ?", (student['name'], today))
                             lunch = c.fetchone()
-                            
+
                             lunch_number = None
                             if lunch:
                                 if lunch['obed_1'] == 1:
@@ -102,7 +101,13 @@ def nfc_card_scanner():
                                     lunch_number = 2
                                 elif lunch['obed_3'] == 1:
                                     lunch_number = 3
-                            
+
+                                # Remove lunch after scan
+                                if lunch_number:
+                                    c.execute(f"UPDATE obed SET obed_{lunch_number} = 0 WHERE id = ?", (lunch['id'],))
+                                    conn.commit()
+                                    print(f"Lunch #{lunch_number} removed for {student['name']} after scan")
+
                             print(f"Card belongs to student: {student['name']}, Lunch: {lunch_number}")
                             socketio.emit('card_scanned', {
                                 'student_id': student['id'],
@@ -112,7 +117,7 @@ def nfc_card_scanner():
                         else:
                             print("Card not assigned, emitting raw UID")
                             socketio.emit('card_scanned', {'uid': uid})
-                        
+
                         conn.close()
 
             else:
@@ -185,6 +190,17 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             card_id TEXT UNIQUE NOT NULL
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS gifted_lunches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            giver_id INTEGER NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            FOREIGN KEY (giver_id) REFERENCES students(id),
+            FOREIGN KEY (receiver_id) REFERENCES students(id)
         )
     ''')
     conn.commit()
@@ -471,6 +487,65 @@ def assign_card():
     conn.close()
     
     return render_template('assign_card.html', students=students)
+
+@app.route('/gift-lunch', methods=['GET', 'POST'])
+def gift_lunch():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db()
+    c = conn.cursor()
+    user_name = session['user']['name']
+    c.execute("SELECT * FROM students WHERE name = ?", (user_name,))
+    giver = c.fetchone()
+    c.execute("SELECT * FROM students WHERE name != ?", (user_name,))
+    students = c.fetchall()
+    message = None
+    error = None
+
+    if request.method == 'POST':
+        receiver_id = request.form.get('receiver_id')
+        today = datetime.now().strftime("%Y-%m-%d")
+        # Find giver's lunch for today
+        c.execute("SELECT * FROM obed WHERE jmeno = ? AND datum = ?", (user_name, today))
+        giver_lunch = c.fetchone()
+        if not giver_lunch or not any(giver_lunch[f'obed_{i}'] == 1 for i in range(1, 4)):
+            error = "You don't have a lunch to gift."
+        else:
+            # Find receiver's name
+            c.execute("SELECT name FROM students WHERE id = ?", (receiver_id,))
+            receiver_name = c.fetchone()['name']
+            # Find receiver's lunch for today
+            c.execute("SELECT * FROM obed WHERE jmeno = ? AND datum = ?", (receiver_name, today))
+            receiver_lunch = c.fetchone()
+            # Check if receiver already has a lunch
+            if receiver_lunch and (receiver_lunch['obed_1'] == 1 or receiver_lunch['obed_2'] == 1 or receiver_lunch['obed_3'] == 1):
+                message = f"{receiver_name} already has a lunch for today."
+            else:
+                # Determine which lunch is owned
+                for i in range(1, 4):
+                    if giver_lunch[f'obed_{i}'] == 1:
+                        # Remove lunch from giver
+                        c.execute(f"UPDATE obed SET obed_{i} = 0 WHERE id = ?", (giver_lunch['id'],))
+                        # Add lunch to receiver (insert if not exists)
+                        if receiver_lunch:
+                            c.execute(f"UPDATE obed SET obed_{i} = 1 WHERE id = ?", (receiver_lunch['id'],))
+                        else:
+                            c.execute(
+                                "INSERT INTO obed (jmeno, obed_1, obed_2, obed_3, datum) VALUES (?, ?, ?, ?, ?)",
+                                (receiver_name, 1 if i == 1 else 0, 1 if i == 2 else 0, 1 if i == 3 else 0, today)
+                            )
+                        break
+                # Record the gift
+                c.execute(
+                    "INSERT INTO gifted_lunches (giver_id, receiver_id, date) VALUES (?, ?, ?)",
+                    (giver['id'], receiver_id, today)
+                )
+                conn.commit()
+                message = "Lunch successfully gifted!"
+
+    conn.close()
+    return render_template('gift_lunch.html', students=students, message=message, error=error)
 
 if __name__ == '__main__':
     with app.app_context():
