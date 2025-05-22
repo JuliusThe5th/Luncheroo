@@ -359,28 +359,32 @@ def authorize():
         print(traceback.format_exc())
         return redirect(url_for('login'))
 
+
 @app.route('/dashboard')
 def dashboard():
     print("\n=== DASHBOARD ACCESS ===")
     if 'user' not in session:
         print("No user in session, redirecting to login")
         return redirect(url_for('login'))
-    
+
     print(f"Session data: {session}")
     user_info = session['user']
     full_name = user_info.get('name')
     print(f"User name: {full_name}")
-    
+
+    # Format current date for display
+    current_date = datetime.now().strftime("%A, %B %d, %Y")
+
     # Get student's lunch from icanteen.db
     conn = get_db()
     c = conn.cursor()
-    
+
     # Try to find student in database - using today's date
     today = datetime.now().strftime("%Y-%m-%d")
     c.execute("SELECT * FROM obed WHERE jmeno = ? AND datum = ?", (full_name, today))
     student = c.fetchone()
     print(f"Direct match result: {student}")
-    
+
     if not student:
         print("No direct match, trying normalized name...")
         # Try normalized name
@@ -393,7 +397,7 @@ def dashboard():
                 student = s
                 print(f"Found normalized match: {s}")
                 break
-    
+
     # Get lunch info
     lunch_info = None
     if student:
@@ -401,7 +405,7 @@ def dashboard():
         print(f"Obed 1: {student['obed_1']}")
         print(f"Obed 2: {student['obed_2']}")
         print(f"Obed 3: {student['obed_3']}")
-        
+
         # Check which lunch number the student has ordered (1, 2, or 3)
         lunch_number = None
         if student['obed_1'] == 1:
@@ -413,7 +417,7 @@ def dashboard():
         elif student['obed_3'] == 1:
             lunch_number = 3
             print("Found lunch #3")
-        
+
         lunch_info = {
             'has_lunch': lunch_number is not None,
             'lunch_number': lunch_number
@@ -425,9 +429,9 @@ def dashboard():
             'lunch_number': None
         }
         print(f"Student has no lunch: {lunch_info}")
-    
+
     conn.close()
-    return render_template('dashboard.html', user=user_info, lunch_info=lunch_info)
+    return render_template('dashboard.html', user=user_info, lunch_info=lunch_info, current_date=current_date)
 
 @app.route('/logout')
 def logout():
@@ -520,7 +524,7 @@ def gift_lunch():
             receiver_lunch = c.fetchone()
             # Check if receiver already has a lunch
             if receiver_lunch and (receiver_lunch['obed_1'] == 1 or receiver_lunch['obed_2'] == 1 or receiver_lunch['obed_3'] == 1):
-                message = f"{receiver_name} already has a lunch for today."
+                message = f"{receiver_name} already has lunch for today."
             else:
                 # Determine which lunch is owned
                 for i in range(1, 4):

@@ -14,7 +14,8 @@
     <main class="flex-1 flex flex-col items-center px-4 py-8">
         <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-xl mb-8">
             <h2 class="text-2xl font-bold mb-2 text-center">Welcome, {{ user.name }}!</h2>
-            <p class="text-gray-600 text-center mb-6">Here's your lunch information for today.</p>
+            <p class="text-gray-600 text-center mb-1">Here's your lunch information for today.</p>
+            <p class="text-gray-500 text-center mb-6 text-sm">{{ current_date }}</p>
             <div class="mb-6">
                 {% if lunch_info.has_lunch %}
                     <div class="bg-green-100 text-green-800 text-center rounded-lg p-4 mb-4 font-semibold">
