@@ -3,12 +3,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Public Lunch Pool - Luncheroo!</title>
     <link rel="icon" href="{{ url_for('static', filename='images/logo-no-background.png') }}" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
-    <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-md mt-10">
+<body class="bg-gray-100 min-h-screen flex flex-col items-center">
+    <!-- Beta notification banner -->
+    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 w-full fixed top-0 z-50 text-center font-bold">
+        ⚠️ This application is currently in BETA development ⚠️
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg p-6 sm:p-8 w-full max-w-md mt-16 mb-8 mx-4">
         <h2 class="text-2xl font-bold mb-4 text-center">Public Lunch Pool</h2>
 
         {% if error %}
