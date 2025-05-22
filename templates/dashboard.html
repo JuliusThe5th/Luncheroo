@@ -9,8 +9,13 @@
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
 <!-- Beta notification banner -->
-    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 w-full fixed top-0 z-50 text-center font-bold">
-        ⚠️ This application is currently in BETA development ⚠️
+    <div id="beta-banner" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 w-full fixed top-0 z-50 text-center font-bold flex justify-between items-center">
+    <div class="flex-grow">⚠️ This application is currently in BETA development ⚠️</div>
+    <button onclick="document.getElementById('beta-banner').classList.add('hidden');" class="text-red-700 hover:text-red-900 focus:outline-none ml-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    </button>
     </div>
     <header class="bg-red-400 py-6 shadow text-center">
         <img src="{{ url_for('static', filename='images/logo-no-background.png') }}" alt="Logo" class="h-24 mx-auto transition-transform duration-300 hover:scale-105">
