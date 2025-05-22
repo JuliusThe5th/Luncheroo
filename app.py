@@ -3,7 +3,7 @@ from authlib.integrations.flask_client import OAuth
 import os
 from dotenv import load_dotenv
 import sqlite3
-from datetime import datetime
+from datetime import datetime, date
 from pyngrok import ngrok, conf
 from flask_socketio import SocketIO
 import threading
@@ -16,6 +16,9 @@ from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 from scripts.czech_lunch_scraper import main as scrape_lunch_pdfs
 from sqlite3 import IntegrityError
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+import atexit
 
 # Load environment variables
 load_dotenv()
@@ -653,10 +656,14 @@ def gift_lunch():
     conn.close()
     return render_template('gift_lunch.html', students=students, message=message, error=error)
 
+
 @app.route('/public-pool', methods=['GET', 'POST'])
 def public_pool():
     if 'user' not in session:
         return redirect(url_for('login'))
+
+    # Clear pool if it's a new day
+    clear_pool_if_new_day()
 
     conn = get_db()
     c = conn.cursor()
@@ -677,30 +684,30 @@ def public_pool():
             if user_lunch and any(user_lunch[f'obed_{i}'] == 1 for i in range(1, 4)):
                 error = "You already have a lunch for today."
             else:
-                # Check if there are lunches available in the pool
+                # Check if the requested lunch is available in the pool
                 c.execute("SELECT quantity FROM public_pool WHERE lunch_number = ?", (lunch_number,))
                 pool_lunch = c.fetchone()
 
                 if pool_lunch and pool_lunch['quantity'] > 0:
-                    # Decrease the pool quantity
-                    c.execute("UPDATE public_pool SET quantity = quantity - 1 WHERE lunch_number = ?",
-                             (lunch_number,))
+                    # Decrease the quantity in the pool
+                    c.execute("UPDATE public_pool SET quantity = quantity - 1 WHERE lunch_number = ?", (lunch_number,))
 
-                    # Add lunch to user
+                    # If user exists in obed table, update their lunch
                     if user_lunch:
-                        c.execute(f"UPDATE obed SET obed_{lunch_number} = 1 WHERE id = ?", (user_lunch['id'],))
+                        lunch_column = f"obed_{lunch_number}"
+                        c.execute(f"UPDATE obed SET {lunch_column} = 1 WHERE jmeno = ? AND datum = ?",
+                                  (user_name, today))
                     else:
+                        # Create a new record for the user
                         lunch_values = [0, 0, 0]
                         lunch_values[lunch_number - 1] = 1
-                        c.execute(
-                            "INSERT INTO obed (jmeno, obed_1, obed_2, obed_3, datum) VALUES (?, ?, ?, ?, ?)",
-                            (user_name, lunch_values[0], lunch_values[1], lunch_values[2], today)
-                        )
+                        c.execute("INSERT INTO obed (jmeno, obed_1, obed_2, obed_3, datum) VALUES (?, ?, ?, ?, ?)",
+                                  (user_name, lunch_values[0], lunch_values[1], lunch_values[2], today))
 
                     conn.commit()
-                    message = f"Lunch #{lunch_number} successfully claimed from the pool!"
+                    message = f"You've successfully taken Lunch #{lunch_number} from the public pool."
                 else:
-                    error = "No lunches of this type available in the pool."
+                    error = "This lunch is no longer available in the pool."
 
     # Get current pool status
     c.execute("SELECT lunch_number, quantity FROM public_pool ORDER BY lunch_number")
@@ -709,11 +716,66 @@ def public_pool():
 
     conn.close()
     return render_template('public_pool.html',
-                          pool_lunches=pool_lunches,
-                          pool_empty=pool_empty,
-                          message=message,
-                          error=error)
+                           pool_lunches=pool_lunches,
+                           pool_empty=pool_empty,
+                           message=message,
+                           error=error)
 
+
+def clear_pool_if_new_day():
+    """Clears the public pool if it hasn't been cleared today"""
+    print(f"Running pool clearing function at {datetime.now()}")
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # Check if we've already cleared the pool today
+    today = date.today().isoformat()
+    c.execute("CREATE TABLE IF NOT EXISTS system_status (key TEXT PRIMARY KEY, value TEXT)")
+    c.execute("SELECT value FROM system_status WHERE key = 'last_pool_clear_date'")
+    last_clear = c.fetchone()
+
+    if not last_clear or last_clear[0] != today:
+        # Clear the pool by resetting all quantities to 0
+        c.execute("UPDATE public_pool SET quantity = 0")
+
+        # Update the last clear date
+        c.execute("INSERT OR REPLACE INTO system_status (key, value) VALUES (?, ?)",
+                  ('last_pool_clear_date', today))
+
+        print(f"Public pool cleared for new day: {today}")
+        conn.commit()
+    else:
+        print(f"Pool already cleared today: {today}")
+
+    conn.close()
+
+
+# Add this function to set up your scheduled tasks
+def setup_scheduled_tasks():
+    scheduler = BackgroundScheduler()
+
+    # Schedule PDF scraper to run daily at 7:15 AM
+    scheduler.add_job(
+        scrape_lunch_pdfs,  # Your existing scraper function
+        trigger=CronTrigger(hour=7, minute=5),
+        id='daily_scraper',
+        replace_existing=True
+    )
+
+    # Schedule pool clearing to run daily at midnight
+    scheduler.add_job(
+        clear_pool_if_new_day,  # Your existing pool clearing function
+        trigger=CronTrigger(hour=0, minute=0),
+        id='daily_pool_clear',
+        replace_existing=True
+    )
+
+    # Start the scheduler
+    scheduler.start()
+
+    # Shut down the scheduler when the app exits
+    atexit.register(lambda: scheduler.shutdown())
 
 @app.route('/delete-student', methods=['POST'])
 @admin_required
@@ -747,9 +809,13 @@ def delete_student():
 
     return redirect(url_for('assign_card'))
 
+
 if __name__ == '__main__':
     with app.app_context():
         init_db()
-    # Scrape PDFs and update the database after tables are created
-    scrape_lunch_pdfs()
+        # Remove the clear_pool_if_new_day() call here
+
+    # Set up scheduled tasks before running the app
+    setup_scheduled_tasks()
+
     socketio.run(app, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
