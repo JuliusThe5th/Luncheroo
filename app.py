@@ -714,6 +714,39 @@ def public_pool():
                           message=message,
                           error=error)
 
+
+@app.route('/delete-student', methods=['POST'])
+@admin_required
+def delete_student():
+    """Delete a student from the database"""
+    if request.method == 'POST':
+        student_id = request.form.get('student_id')
+
+        if not student_id:
+            return redirect(url_for('assign_card', error="Student ID is required"))
+
+        try:
+            conn = get_db()
+            c = conn.cursor()
+
+            # Get student name for confirmation message
+            c.execute("SELECT name FROM students WHERE id = ?", (student_id,))
+            student = c.fetchone()
+            student_name = student['name'] if student else "Unknown"
+
+            # Delete student record
+            c.execute("DELETE FROM students WHERE id = ?", (student_id,))
+            conn.commit()
+            conn.close()
+
+            return redirect(url_for('assign_card', success=f"Student '{student_name}' was successfully deleted"))
+
+        except Exception as e:
+            print(f"Error deleting student: {str(e)}")
+            return redirect(url_for('assign_card', error="An error occurred while deleting the student"))
+
+    return redirect(url_for('assign_card'))
+
 if __name__ == '__main__':
     with app.app_context():
         init_db()
