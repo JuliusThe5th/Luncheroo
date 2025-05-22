@@ -1,0 +1,57 @@
+<!-- templates/public_pool.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Public Lunch Pool - Luncheroo!</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/logo-no-background.png') }}" type="image/png">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
+    <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-md mt-10">
+        <h2 class="text-2xl font-bold mb-4 text-center">Public Lunch Pool</h2>
+
+        {% if error %}
+            <div class="bg-red-100 text-red-800 text-center rounded-lg p-4 mb-4 font-semibold">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        {% if message %}
+            <div class="bg-green-100 text-green-800 text-center rounded-lg p-4 mb-4 font-semibold">
+                {{ message }}
+            </div>
+        {% endif %}
+
+        <div class="mt-6 space-y-4">
+            <h3 class="text-lg font-medium mb-2">Available Lunches</h3>
+
+            {% if pool_empty %}
+                <div class="bg-gray-100 text-gray-600 text-center rounded-lg p-4 mb-4">
+                    No lunches available in the public pool.
+                </div>
+            {% else %}
+                {% for lunch in pool_lunches %}
+                    <div class="border rounded p-4 flex justify-between items-center">
+                        <div>
+                            <span class="font-medium">Lunch #{{ lunch.lunch_number }}</span>
+                            <span class="text-gray-500 ml-2">Quantity: {{ lunch.quantity }}</span>
+                        </div>
+                        <form method="post">
+                            <input type="hidden" name="action" value="take_from_pool">
+                            <input type="hidden" name="lunch_number" value="{{ lunch.lunch_number }}">
+                            <button type="submit" class="bg-red-400 text-white px-4 py-2 rounded hover:bg-red-500 transition" {% if lunch.quantity < 1 %}disabled{% endif %}>
+                                Take
+                            </button>
+                        </form>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="mt-6 text-center">
+            <a href="{{ url_for('dashboard') }}" class="text-blue-500 hover:underline">Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

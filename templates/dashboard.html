@@ -30,14 +30,18 @@
                     </div>
                 {% endif %}
             </div>
+        <!-- Add this to the div containing the links in dashboard.html -->
             <div class="text-center">
-                <a href="{{ url_for('gift_lunch') }}" class="inline-block bg-blue-400 text-white px-6 py-2 rounded-lg font-medium shadow hover:bg-blue-500 transition mt-4">
-                    Gift your Lunch
-                </a>
-                <a href="/logout" class="inline-block bg-red-400 text-white px-6 py-2 rounded-lg font-medium shadow hover:bg-red-500 transition">
-                    Logout
-                </a>
-            </div>
+    <a href="{{ url_for('gift_lunch') }}" class="inline-block bg-blue-400 text-white px-6 py-2 rounded-lg font-medium shadow hover:bg-blue-500 transition mt-4">
+        Gift your Lunch
+    </a>
+    <a href="{{ url_for('public_pool') }}" class="inline-block bg-green-400 text-white px-6 py-2 rounded-lg font-medium shadow hover:bg-green-500 transition mt-4">
+        Public Lunch Pool
+    </a>
+    <a href="/logout" class="inline-block bg-red-400 text-white px-6 py-2 rounded-lg font-medium shadow hover:bg-red-500 transition">
+        Logout
+    </a>
+</div>
         </div>
     </main>
     <footer class="bg-white text-gray-500 text-center py-4 shadow-inner">

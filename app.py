@@ -169,40 +169,119 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+
 def init_db():
     """Initialize the database with required tables"""
     conn = get_db()
     c = conn.cursor()
     # Create obed table
     c.execute('''
-        CREATE TABLE IF NOT EXISTS obed (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            jmeno TEXT,
-            obed_1 INTEGER,
-            obed_2 INTEGER,
-            obed_3 INTEGER,
-            datum TEXT
-        )
-    ''')
+              CREATE TABLE IF NOT EXISTS obed
+              (
+                  id
+                  INTEGER
+                  PRIMARY
+                  KEY
+                  AUTOINCREMENT,
+                  jmeno
+                  TEXT,
+                  obed_1
+                  INTEGER,
+                  obed_2
+                  INTEGER,
+                  obed_3
+                  INTEGER,
+                  datum
+                  TEXT
+              )
+              ''')
     # Create students table
     c.execute('''
-        CREATE TABLE IF NOT EXISTS students (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            card_id TEXT UNIQUE NOT NULL
-        )
-    ''')
+              CREATE TABLE IF NOT EXISTS students
+              (
+                  id
+                  INTEGER
+                  PRIMARY
+                  KEY
+                  AUTOINCREMENT,
+                  name
+                  TEXT
+                  NOT
+                  NULL,
+                  card_id
+                  TEXT
+                  UNIQUE
+                  NOT
+                  NULL
+              )
+              ''')
 
     c.execute('''
-        CREATE TABLE IF NOT EXISTS gifted_lunches (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            giver_id INTEGER NOT NULL,
-            receiver_id INTEGER NOT NULL,
-            date TEXT NOT NULL,
-            FOREIGN KEY (giver_id) REFERENCES students(id),
-            FOREIGN KEY (receiver_id) REFERENCES students(id)
-        )
-    ''')
+              CREATE TABLE IF NOT EXISTS gifted_lunches
+              (
+                  id
+                  INTEGER
+                  PRIMARY
+                  KEY
+                  AUTOINCREMENT,
+                  giver_id
+                  INTEGER
+                  NOT
+                  NULL,
+                  receiver_id
+                  INTEGER
+                  NOT
+                  NULL,
+                  date
+                  TEXT
+                  NOT
+                  NULL,
+                  FOREIGN
+                  KEY
+              (
+                  giver_id
+              ) REFERENCES students
+              (
+                  id
+              ),
+                  FOREIGN KEY
+              (
+                  receiver_id
+              ) REFERENCES students
+              (
+                  id
+              )
+                  )
+              ''')
+
+    # Create public_pool table
+    c.execute('''
+              CREATE TABLE IF NOT EXISTS public_pool
+              (
+                  id
+                  INTEGER
+                  PRIMARY
+                  KEY
+                  AUTOINCREMENT,
+                  lunch_number
+                  INTEGER
+                  NOT
+                  NULL,
+                  quantity
+                  INTEGER
+                  NOT
+                  NULL
+                  DEFAULT
+                  0
+              )
+              ''')
+
+    # Initialize the pool with zero lunches if it doesn't exist
+    c.execute("SELECT COUNT(*) FROM public_pool")
+    if c.fetchone()[0] == 0:
+        for i in range(1, 4):
+            c.execute("INSERT INTO public_pool (lunch_number, quantity) VALUES (?, 0)", (i,))
+
     conn.commit()
     conn.close()
     print("Database initialized successfully")
@@ -508,48 +587,132 @@ def gift_lunch():
     error = None
 
     if request.method == 'POST':
-        receiver_id = request.form.get('receiver_id')
+        action = request.form.get('action', 'gift_to_student')
         today = datetime.now().strftime("%Y-%m-%d")
+
         # Find giver's lunch for today
         c.execute("SELECT * FROM obed WHERE jmeno = ? AND datum = ?", (user_name, today))
         giver_lunch = c.fetchone()
+
         if not giver_lunch or not any(giver_lunch[f'obed_{i}'] == 1 for i in range(1, 4)):
             error = "You don't have a lunch to gift."
         else:
-            # Find receiver's name
-            c.execute("SELECT name FROM students WHERE id = ?", (receiver_id,))
-            receiver_name = c.fetchone()['name']
-            # Find receiver's lunch for today
-            c.execute("SELECT * FROM obed WHERE jmeno = ? AND datum = ?", (receiver_name, today))
-            receiver_lunch = c.fetchone()
-            # Check if receiver already has a lunch
-            if receiver_lunch and (receiver_lunch['obed_1'] == 1 or receiver_lunch['obed_2'] == 1 or receiver_lunch['obed_3'] == 1):
-                message = f"{receiver_name} already has lunch for today."
-            else:
-                # Determine which lunch is owned
-                for i in range(1, 4):
-                    if giver_lunch[f'obed_{i}'] == 1:
-                        # Remove lunch from giver
-                        c.execute(f"UPDATE obed SET obed_{i} = 0 WHERE id = ?", (giver_lunch['id'],))
-                        # Add lunch to receiver (insert if not exists)
-                        if receiver_lunch:
-                            c.execute(f"UPDATE obed SET obed_{i} = 1 WHERE id = ?", (receiver_lunch['id'],))
-                        else:
-                            c.execute(
-                                "INSERT INTO obed (jmeno, obed_1, obed_2, obed_3, datum) VALUES (?, ?, ?, ?, ?)",
-                                (receiver_name, 1 if i == 1 else 0, 1 if i == 2 else 0, 1 if i == 3 else 0, today)
-                            )
-                        break
-                # Record the gift
-                c.execute(
-                    "INSERT INTO gifted_lunches (giver_id, receiver_id, date) VALUES (?, ?, ?)",
-                    (giver['id'], receiver_id, today)
-                )
+            # Determine which lunch the giver has
+            giver_lunch_number = None
+            for i in range(1, 4):
+                if giver_lunch[f'obed_{i}'] == 1:
+                    giver_lunch_number = i
+                    break
+
+            if action == 'gift_to_student':
+                receiver_id = request.form.get('receiver_id')
+                # Find receiver's name
+                c.execute("SELECT name FROM students WHERE id = ?", (receiver_id,))
+                receiver_name = c.fetchone()['name']
+                # Find receiver's lunch for today
+                c.execute("SELECT * FROM obed WHERE jmeno = ? AND datum = ?", (receiver_name, today))
+                receiver_lunch = c.fetchone()
+
+                # Check if receiver already has a lunch
+                if receiver_lunch and any(receiver_lunch[f'obed_{i}'] == 1 for i in range(1, 4)):
+                    message = f"{receiver_name} already has lunch for today."
+                else:
+                    # Remove lunch from giver
+                    c.execute(f"UPDATE obed SET obed_{giver_lunch_number} = 0 WHERE id = ?", (giver_lunch['id'],))
+
+                    # Add lunch to receiver (insert if not exists)
+                    if receiver_lunch:
+                        c.execute(f"UPDATE obed SET obed_{giver_lunch_number} = 1 WHERE id = ?", (receiver_lunch['id'],))
+                    else:
+                        lunch_values = [0, 0, 0]
+                        lunch_values[giver_lunch_number - 1] = 1
+                        c.execute(
+                            "INSERT INTO obed (jmeno, obed_1, obed_2, obed_3, datum) VALUES (?, ?, ?, ?, ?)",
+                            (receiver_name, lunch_values[0], lunch_values[1], lunch_values[2], today)
+                        )
+
+                    # Record the gift
+                    c.execute(
+                        "INSERT INTO gifted_lunches (giver_id, receiver_id, date) VALUES (?, ?, ?)",
+                        (giver['id'], receiver_id, today)
+                    )
+                    conn.commit()
+                    message = "Lunch successfully gifted!"
+
+            elif action == 'gift_to_pool':
+                # Remove lunch from giver
+                c.execute(f"UPDATE obed SET obed_{giver_lunch_number} = 0 WHERE id = ?", (giver_lunch['id'],))
+
+                # Add to public pool
+                c.execute("UPDATE public_pool SET quantity = quantity + 1 WHERE lunch_number = ?",
+                         (giver_lunch_number,))
+
                 conn.commit()
-                message = "Lunch successfully gifted!"
+                message = "Lunch successfully added to the public pool!"
 
     conn.close()
     return render_template('gift_lunch.html', students=students, message=message, error=error)
+
+@app.route('/public-pool', methods=['GET', 'POST'])
+def public_pool():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db()
+    c = conn.cursor()
+    user_name = session['user']['name']
+    message = None
+    error = None
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'take_from_pool':
+            lunch_number = int(request.form.get('lunch_number'))
+            today = datetime.now().strftime("%Y-%m-%d")
+
+            # Check if user already has a lunch
+            c.execute("SELECT * FROM obed WHERE jmeno = ? AND datum = ?", (user_name, today))
+            user_lunch = c.fetchone()
+
+            if user_lunch and any(user_lunch[f'obed_{i}'] == 1 for i in range(1, 4)):
+                error = "You already have a lunch for today."
+            else:
+                # Check if there are lunches available in the pool
+                c.execute("SELECT quantity FROM public_pool WHERE lunch_number = ?", (lunch_number,))
+                pool_lunch = c.fetchone()
+
+                if pool_lunch and pool_lunch['quantity'] > 0:
+                    # Decrease the pool quantity
+                    c.execute("UPDATE public_pool SET quantity = quantity - 1 WHERE lunch_number = ?",
+                             (lunch_number,))
+
+                    # Add lunch to user
+                    if user_lunch:
+                        c.execute(f"UPDATE obed SET obed_{lunch_number} = 1 WHERE id = ?", (user_lunch['id'],))
+                    else:
+                        lunch_values = [0, 0, 0]
+                        lunch_values[lunch_number - 1] = 1
+                        c.execute(
+                            "INSERT INTO obed (jmeno, obed_1, obed_2, obed_3, datum) VALUES (?, ?, ?, ?, ?)",
+                            (user_name, lunch_values[0], lunch_values[1], lunch_values[2], today)
+                        )
+
+                    conn.commit()
+                    message = f"Lunch #{lunch_number} successfully claimed from the pool!"
+                else:
+                    error = "No lunches of this type available in the pool."
+
+    # Get current pool status
+    c.execute("SELECT lunch_number, quantity FROM public_pool ORDER BY lunch_number")
+    pool_lunches = c.fetchall()
+    pool_empty = all(lunch['quantity'] == 0 for lunch in pool_lunches)
+
+    conn.close()
+    return render_template('public_pool.html',
+                          pool_lunches=pool_lunches,
+                          pool_empty=pool_empty,
+                          message=message,
+                          error=error)
 
 if __name__ == '__main__':
     with app.app_context():

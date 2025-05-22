@@ -10,32 +10,80 @@
 <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
     <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-md mt-10">
         <h2 class="text-2xl font-bold mb-4 text-center">Gift your Lunch</h2>
+
         {% if error %}
             <div class="bg-red-100 text-red-800 text-center rounded-lg p-4 mb-4 font-semibold">
                 {{ error }}
             </div>
         {% endif %}
+
         {% if message %}
-            {% if "already" in message %}
-                <div class="bg-red-100 text-red-800 text-center rounded-lg p-4 mb-4 font-semibold">
-                    {{ message }}
-                </div>
-            {% else %}
-                <div class="bg-green-100 text-green-800 text-center rounded-lg p-4 mb-4 font-semibold">
-                    {{ message }}
-                </div>
-            {% endif %}
+            <div class="bg-green-100 text-green-800 text-center rounded-lg p-4 mb-4 font-semibold">
+                {{ message }}
+            </div>
         {% endif %}
-        <form method="post" class="space-y-4">
-            <label for="receiver_id" class="block text-gray-700">Select a student to gift your lunch to:</label>
-            <select name="receiver_id" id="receiver_id" class="w-full border rounded p-2" required>
-                {% for student in students %}
-                    <option value="{{ student.id }}">{{ student.name }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="w-full bg-red-400 text-white px-4 py-2 rounded hover:bg-red-500 transition">Gift Lunch</button>
-        </form>
-        <div class="mt-4 text-center">
+
+        <div class="mt-6 space-y-4">
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h3 class="text-lg font-medium mb-2">Select a gift option:</h3>
+
+                <div class="space-y-2">
+                    <div class="flex items-center">
+                        <input type="radio" id="gift_student" name="gift_option" value="student" checked
+                               onclick="document.getElementById('student_section').classList.remove('hidden');
+                                        document.getElementById('pool_section').classList.add('hidden');"
+                               class="mr-2">
+                        <label for="gift_student">Gift to a student</label>
+                    </div>
+
+                    <div class="flex items-center">
+                        <input type="radio" id="gift_pool" name="gift_option" value="pool"
+                               onclick="document.getElementById('student_section').classList.add('hidden');
+                                        document.getElementById('pool_section').classList.remove('hidden');"
+                               class="mr-2">
+                        <label for="gift_pool">Gift to public pool</label>
+                    </div>
+                </div>
+            </div>
+
+            <div id="student_section">
+                <form method="post" class="space-y-4">
+                    <input type="hidden" name="action" value="gift_to_student">
+
+                    <div>
+                        <label for="receiver_id" class="block text-sm font-medium text-gray-700 mb-1">Select Student:</label>
+                        <select name="receiver_id" id="receiver_id" class="w-full p-2 border border-gray-300 rounded-md" required>
+                            <option value="" disabled selected>Choose a student</option>
+                            {% for student in students %}
+                                <option value="{{ student.id }}">{{ student.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        Gift Lunch to Student
+                    </button>
+                </form>
+            </div>
+
+            <div id="pool_section" class="hidden">
+                <form method="post" class="space-y-4">
+                    <input type="hidden" name="action" value="gift_to_pool">
+
+                    <div class="bg-blue-50 p-4 rounded-lg mb-4">
+                        <p class="text-blue-800">
+                            Your lunch will be added to the public pool where any student can claim it.
+                        </p>
+                    </div>
+
+                    <button type="submit" class="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                        Gift Lunch to Public Pool
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center">
             <a href="{{ url_for('dashboard') }}" class="text-blue-500 hover:underline">Back to Dashboard</a>
         </div>
     </div>
