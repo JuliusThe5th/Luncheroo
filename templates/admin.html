@@ -37,6 +37,10 @@
     <!-- Header -->
     <header class="bg-red-400 py-6 shadow-md text-center relative">
         <div class="container mx-auto px-4 flex flex-col items-center">
+            <!-- Logout button on the left -->
+            <a href="{{ url_for('logout') }}" class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white text-red-500 px-4 py-2 rounded-lg shadow hover:bg-gray-100 transition font-medium">
+                <i class="fas fa-sign-out-alt mr-1"></i> Logout
+            </a>
             <img src="{{ url_for('static', filename='images/logo-no-background.png') }}" alt="Logo" class="h-16 transition-transform duration-300 hover:scale-105">
             <div id="current-time" class="text-white text-xl font-semibold absolute right-4 top-1/2 transform -translate-y-1/2"></div>
         </div>
