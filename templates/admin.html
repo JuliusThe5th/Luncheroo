@@ -3,46 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chef Panel - Luncheroo!</title>
+    <title>Admin Dashboard - Luncheroo!</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="{{ url_for('static', filename='images/logo-no-background.png') }}" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f6f8fc 0%, #e9f0f7 100%);
-            background-image: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), url('/static/images/logo-no-background.png');
-            background-size: 80%;
-            background-position: center;
-            background-repeat: no-repeat;
         }
-        .gradient-text {
-            background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .card-hover {
+        .dashboard-card {
             transition: all 0.3s ease;
         }
-        .card-hover:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
-            transition: all 0.3s ease;
-        }
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #FF5252 0%, #FF7A7A 100%);
-            transform: translateY(-1px);
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
     </style>
 </head>
-<body class="min-h-screen">
-<!-- Beta notification banner -->
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <!-- Beta notification banner -->
     <div id="beta-banner" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 w-full fixed top-0 z-50 text-center font-bold flex justify-between items-center">
         <div class="flex-grow">⚠️ This application is currently in BETA development ⚠️</div>
         <button onclick="document.getElementById('beta-banner').classList.add('hidden');" class="text-red-700 hover:text-red-900 focus:outline-none ml-2">
@@ -51,141 +33,145 @@
             </svg>
         </button>
     </div>
-    <div class="container mx-auto px-4 py-8">
-        <div class="max-w-2xl mx-auto">
-            <div class="text-center mb-8">
-                <h1 class="text-4xl font-bold gradient-text mb-2">Chef Panel</h1>
-                <p class="text-gray-600">Manage student lunch assignments and view scan history</p>
+
+    <!-- Header -->
+    <header class="bg-red-400 py-6 shadow-md text-center relative">
+        <div class="container mx-auto px-4 flex flex-col items-center">
+            <img src="{{ url_for('static', filename='images/logo-no-background.png') }}" alt="Logo" class="h-16 transition-transform duration-300 hover:scale-105">
+            <div id="current-time" class="text-white text-xl font-semibold absolute right-4 top-1/2 transform -translate-y-1/2"></div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 container mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Today's Lunch Orders Count -->
+            <div class="bg-white rounded-xl shadow-lg p-6 dashboard-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800">Today's Lunch Orders</h3>
+                    <span class="bg-red-100 text-red-600 p-2 rounded-full">
+                        <i class="fas fa-utensils"></i>
+                    </span>
+                </div>
+                <p class="text-4xl font-bold text-red-500">{{ lunch_count }}</p>
+                <p class="text-gray-500 mt-2">Total lunches ordered for today</p>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 card-hover">
-                <div class="bg-red-50 rounded-xl p-6 mb-6">
-                    <h2 class="text-xl font-semibold mb-3 text-red-900">Instructions</h2>
-                    <p class="text-red-700">Place an ISIC card on the reader to see the student's lunch information.</p>
+            <!-- Available Lunches -->
+            <div class="bg-white rounded-xl shadow-lg p-6 dashboard-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800">Available Lunches</h3>
+                    <span class="bg-green-100 text-green-600 p-2 rounded-full">
+                        <i class="fas fa-hamburger"></i>
+                    </span>
                 </div>
+                <p class="text-4xl font-bold text-green-500">{{ available_count }}</p>
+                <p class="text-gray-500 mt-2">Lunches available in the pool</p>
+            </div>
 
-                <div id="cardStatus" class="text-center p-6 mb-6 bg-gray-50 rounded-xl">
-                    <p class="text-gray-600">Waiting for card...</p>
+            <!-- Student Activity -->
+            <div class="bg-white rounded-xl shadow-lg p-6 dashboard-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800">Recent Activity</h3>
+                    <span class="bg-blue-100 text-blue-600 p-2 rounded-full">
+                        <i class="fas fa-users"></i>
+                    </span>
                 </div>
+                <p class="text-4xl font-bold text-blue-500">{{ recent_activity_count }}</p>
+                <p class="text-gray-500 mt-2">Student logins in the last 24 hours</p>
+            </div>
+        </div>
 
-                <div id="studentInfo" class="hidden">
-                    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                        <h3 class="text-xl font-semibold mb-4 text-gray-900">Student Information</h3>
-                        <div class="space-y-3">
-                            <p class="text-lg"><span class="font-medium text-gray-700">Name:</span> <span id="studentName" class="text-gray-900"></span></p>
-                            <p class="text-lg"><span class="font-medium text-gray-700">Lunch Number:</span> <span id="lunchNumber" class="text-gray-900"></span></p>
-                        </div>
+        <!-- Administrative Tools -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">Administrative Tools</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Card Scanner -->
+                <a href="{{ url_for('card_scanner') }}" class="bg-red-50 rounded-xl p-6 text-center hover:bg-red-100 transition dashboard-card">
+                    <div class="bg-red-100 w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center">
+                        <i class="fas fa-id-card text-2xl text-red-500"></i>
                     </div>
-                </div>
-            </div>
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Card Scanner</h3>
+                    <p class="text-gray-600">Scan student cards and view scan history</p>
+                </a>
 
-            <!-- History Section -->
-            <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 card-hover">
-                <h3 class="text-2xl font-semibold mb-4 text-gray-900">Today's Scan History</h3>
-                <div id="scanHistory" class="max-h-80 overflow-y-auto bg-gray-50 rounded-xl p-4">
-                    <div class="text-center text-gray-500">No scans yet today</div>
-                </div>
-            </div>
-
-            <div class="text-center">
-                <a href="{{ url_for('assign_card') }}"
-                   class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white btn-primary shadow-md hover:shadow-lg">
-                    Manage Card Assignments
+                <!-- Card Assignment -->
+                <a href="{{ url_for('assign_card') }}" class="bg-blue-50 rounded-xl p-6 text-center hover:bg-blue-100 transition dashboard-card">
+                    <div class="bg-blue-100 w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user-edit text-2xl text-blue-500"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Card Assignment</h3>
+                    <p class="text-gray-600">Assign NFC cards to students</p>
                 </a>
             </div>
         </div>
-    </div>
+
+        <!-- Quick Stats & Analytics -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Student Lunch Status -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">Student Lunch Status</h2>
+                <div class="flex justify-around">
+                    <div class="text-center">
+                        <p class="text-3xl font-bold text-red-500">{{ total_students }}</p>
+                        <p class="text-gray-600">Total Students</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-3xl font-bold text-green-500">{{ students_with_lunch }}</p>
+                        <p class="text-gray-600">With Lunch</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-3xl font-bold text-yellow-500">{{ students_without_lunch }}</p>
+                        <p class="text-gray-600">Without Lunch</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Lunch Assignments -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">Recent Lunch Assignments</h2>
+                <div class="overflow-y-auto max-h-48">
+                    {% if recent_assignments %}
+                        <ul class="divide-y divide-gray-200">
+                            {% for assignment in recent_assignments %}
+                                <li class="py-3 flex justify-between">
+                                    <span class="font-medium">{{ assignment.student_name }}</span>
+                                    <span class="text-gray-600">Lunch #{{ assignment.lunch_id }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-gray-500 text-center py-4">No recent lunch assignments</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white text-gray-500 text-center py-4 shadow-inner mt-8">
+        &copy; 2025 Luncheroo, in cooperation with ITG
+    </footer>
 
     <script>
-        const socket = io();
-        const cardStatus = document.getElementById('cardStatus');
-        const studentInfo = document.getElementById('studentInfo');
-        const studentName = document.getElementById('studentName');
-        const lunchNumber = document.getElementById('lunchNumber');
-        const scanHistory = document.getElementById('scanHistory');
-        let hideTimeout;
-        let lastDay = new Date().toDateString();
+        // Current date and time display
+        function updateTime() {
+            const now = new Date();
 
-        function resetDisplay() {
-            cardStatus.innerHTML = `
-                <p class="text-gray-600">Waiting for card...</p>
-            `;
-            studentInfo.classList.add('hidden');
+            // European date & time format (day-month-year, 24-hour clock)
+            const time = now.toLocaleTimeString('en-GB');
+            const date = now.toLocaleDateString('en-GB', {
+                weekday: 'long',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+
+            document.getElementById('current-time').textContent = `${date}, ${time}`;
         }
 
-        function addToHistory(data) {
-            // Check if it's a new day
-            const currentDay = new Date().toDateString();
-            if (currentDay !== lastDay) {
-                scanHistory.innerHTML = '';
-                lastDay = currentDay;
-            }
-
-            const time = new Date().toLocaleTimeString();
-            const historyItem = document.createElement('div');
-            historyItem.className = 'mb-3 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200';
-
-            if (data.uid) {
-                historyItem.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <span class="text-red-600 font-medium">Unassigned Card</span>
-                        <span class="text-sm text-gray-500">${time}</span>
-                    </div>
-                `;
-            } else {
-                historyItem.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <span class="font-medium text-gray-900">${data.student_name}</span>
-                            <span class="text-gray-600 ml-2">${data.lunch_number ? `Lunch #${data.lunch_number}` : 'No lunch'}</span>
-                        </div>
-                        <span class="text-sm text-gray-500">${time}</span>
-                    </div>
-                `;
-            }
-
-            // Remove "No scans yet" message if it exists
-            if (scanHistory.querySelector('.text-center')) {
-                scanHistory.innerHTML = '';
-            }
-
-            // Add new item at the top
-            scanHistory.insertBefore(historyItem, scanHistory.firstChild);
-        }
-
-        socket.on('card_scanned', function(data) {
-            // Clear any existing timeout
-            if (hideTimeout) {
-                clearTimeout(hideTimeout);
-            }
-
-            if (data.uid) {
-                cardStatus.innerHTML = `
-                    <p class="text-red-600 font-medium text-lg">Unassigned Card</p>
-                    <p class="text-sm text-gray-500">This card is not assigned to any student.</p>
-                `;
-                studentInfo.classList.add('hidden');
-
-                // Hide unassigned card message after 5 seconds
-                hideTimeout = setTimeout(resetDisplay, 5000);
-            } else if (data.student_id) {
-                cardStatus.innerHTML = `
-                    <p class="text-green-600 font-medium text-lg">Card Detected!</p>
-                    <p class="text-sm text-gray-500">Student found in database.</p>
-                `;
-
-                studentName.textContent = data.student_name;
-                lunchNumber.textContent = data.lunch_number ? `Lunch #${data.lunch_number}` : 'No lunch ordered';
-
-                studentInfo.classList.remove('hidden');
-
-                // Hide student info after 5 seconds
-                hideTimeout = setTimeout(resetDisplay, 5000);
-            }
-
-            // Add to history
-            addToHistory(data);
-        });
+        updateTime();
+        setInterval(updateTime, 1000);
     </script>
 </body>
-</html> 
+</html>

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Scanner - Luncheroo!</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="{{ url_for('static', filename='images/logo-no-background.png') }}" type="image/png">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f6f8fc 0%, #e9f0f7 100%);
+            background-image: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), url('/static/images/logo-no-background.png');
+            background-size: 80%;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #FF5252 0%, #FF7A7A 100%);
+            transform: translateY(-1px);
+        }
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: modalFadeIn 0.3s;
+        }
+        @keyframes modalFadeIn {
+            from {opacity: 0; transform: translateY(-20px);}
+            to {opacity: 1; transform: translateY(0);}
+        }
+        .pincode-input {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px 0;
+        }
+        .pincode-input input {
+            width: 40px;
+            height: 50px;
+            text-align: center;
+            font-size: 24px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .pincode-input input:focus {
+            border-color: #FF6B6B;
+            outline: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+<!-- Beta notification banner -->
+    <div id="beta-banner" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 w-full fixed top-0 z-50 text-center font-bold flex justify-between items-center">
+        <div class="flex-grow">⚠️ This application is currently in BETA development ⚠️</div>
+        <button onclick="document.getElementById('beta-banner').classList.add('hidden');" class="text-red-700 hover:text-red-900 focus:outline-none ml-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    </div>
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold gradient-text mb-2">Card Scanner</h1>
+                <p class="text-gray-600">Scan student lunch cards and view scan history</p>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 card-hover">
+                <div class="bg-red-50 rounded-xl p-6 mb-6">
+                    <h2 class="text-xl font-semibold mb-3 text-red-900">Instructions</h2>
+                    <p class="text-red-700">Place an ISIC card on the reader to see the student's lunch information.</p>
+                </div>
+
+                <div id="cardStatus" class="text-center p-6 mb-6 bg-gray-50 rounded-xl">
+                    <p class="text-gray-600">Waiting for card...</p>
+                </div>
+
+                <div id="studentInfo" class="hidden">
+                    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-900">Student Information</h3>
+                        <div class="space-y-3">
+                            <p class="text-lg"><span class="font-medium text-gray-700">Name:</span> <span id="studentName" class="text-gray-900"></span></p>
+                            <p class="text-lg"><span class="font-medium text-gray-700">Lunch Number:</span> <span id="lunchNumber" class="text-gray-900"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Section -->
+            <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 card-hover">
+                <h3 class="text-2xl font-semibold mb-4 text-gray-900">Today's Scan History</h3>
+                <!-- Current Time Display -->
+                <div id="current-time" class="text-center p-2 mb-3 bg-gray-100 rounded-lg text-gray-700 font-medium"></div>
+                <div id="scanHistory" class="max-h-80 overflow-y-auto bg-gray-50 rounded-xl p-4">
+                    <div class="text-center text-gray-500">No scans yet today</div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button id="adminDashboardBtn"
+                   class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-blue-500 shadow-md hover:shadow-lg hover:bg-blue-600 ml-4">
+                    Back to Admin Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pincode Modal -->
+    <div id="pincodeModal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-xl font-semibold text-center text-gray-800 mb-4">Admin Authentication</h2>
+            <p class="text-gray-600 text-center mb-2">Please enter your PIN code to continue</p>
+
+            <div class="pincode-input">
+                <input type="password" maxlength="1" class="pin-digit" data-index="0" />
+                <input type="password" maxlength="1" class="pin-digit" data-index="1" />
+                <input type="password" maxlength="1" class="pin-digit" data-index="2" />
+                <input type="password" maxlength="1" class="pin-digit" data-index="3" />
+            </div>
+
+            <div id="pinError" class="text-red-500 text-center mb-4 hidden">
+                Incorrect PIN code. Please try again.
+            </div>
+
+            <div class="flex justify-center space-x-4">
+                <button id="cancelPinBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                    Cancel
+                </button>
+                <button id="submitPinBtn" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const cardStatus = document.getElementById('cardStatus');
+        const studentInfo = document.getElementById('studentInfo');
+        const studentName = document.getElementById('studentName');
+        const lunchNumber = document.getElementById('lunchNumber');
+        const scanHistory = document.getElementById('scanHistory');
+        let hideTimeout;
+        let lastDay = new Date().toDateString();
+
+        // PIN code variables
+        const correctPin = "{{ admin_pin }}"; // PIN code from server
+        let currentDestination = '';
+        const modal = document.getElementById('pincodeModal');
+        const pinDigits = document.querySelectorAll('.pin-digit');
+        const pinError = document.getElementById('pinError');
+        const currentTimeElement = document.getElementById('current-time');
+
+        // Function to update the current time
+        function updateCurrentTime() {
+            const now = new Date();
+
+            // European date & time format (day-month-year, 24-hour clock)
+            const time = now.toLocaleTimeString('en-GB');
+            const date = now.toLocaleDateString('en-GB', {
+                weekday: 'long',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+
+            currentTimeElement.textContent = `${date}, ${time}`;
+        }
+
+        // Update time immediately and then every second
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+
+        // Add event listeners for PIN code input fields
+        pinDigits.forEach((digit, index) => {
+            // Focus next input after entering a digit
+            digit.addEventListener('input', (e) => {
+                if (e.target.value.length === 1) {
+                    const nextIndex = index + 1;
+                    if (nextIndex < pinDigits.length) {
+                        pinDigits[nextIndex].focus();
+                    } else {
+                        // If we're on the last digit and it's filled, trigger validation
+                        validatePin();
+                    }
+                }
+            });
+
+            // Handle backspace to go to previous input
+            digit.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && e.target.value.length === 0) {
+                    const prevIndex = index - 1;
+                    if (prevIndex >= 0) {
+                        pinDigits[prevIndex].focus();
+                    }
+                }
+                // Add Enter key support
+                if (e.key === 'Enter') {
+                    validatePin();
+                }
+            });
+        });
+
+        // Button event listeners
+        document.getElementById('adminDashboardBtn').addEventListener('click', () => {
+            showPincodeModal('admin');
+        });
+
+        document.getElementById('cancelPinBtn').addEventListener('click', closePincodeModal);
+
+        document.getElementById('submitPinBtn').addEventListener('click', validatePin);
+
+        // Show the PIN code modal
+        function showPincodeModal(destination) {
+            currentDestination = destination;
+            modal.style.display = 'block';
+            pinDigits[0].focus();
+            resetPinInputs();
+        }
+
+        // Close the PIN code modal
+        function closePincodeModal() {
+            modal.style.display = 'none';
+            resetPinInputs();
+        }
+
+        // Reset PIN inputs
+        function resetPinInputs() {
+            pinDigits.forEach(input => input.value = '');
+            pinError.classList.add('hidden');
+        }
+
+        // Validate the entered PIN
+        function validatePin() {
+            const enteredPin = Array.from(pinDigits).map(input => input.value).join('');
+
+            if (enteredPin === correctPin) {
+                // PIN is correct, redirect to the appropriate page
+                if (currentDestination === 'admin') {
+                    window.location.href = "{{ url_for('admin') }}";
+                } else if (currentDestination === 'assign-card') {
+                    window.location.href = "{{ url_for('assign_card') }}";
+                }
+            } else {
+                // Show error message
+                pinError.classList.remove('hidden');
+                resetPinInputs();
+                pinDigits[0].focus();
+            }
+        }
+
+        function resetDisplay() {
+            cardStatus.innerHTML = `
+                <p class="text-gray-600">Waiting for card...</p>
+            `;
+            studentInfo.classList.add('hidden');
+        }
+
+        function addToHistory(data) {
+            // Check if it's a new day
+            const currentDay = new Date().toDateString();
+            if (currentDay !== lastDay) {
+                scanHistory.innerHTML = '';
+                lastDay = currentDay;
+            }
+
+            const time = new Date().toLocaleTimeString('en-GB');
+            const historyItem = document.createElement('div');
+            historyItem.className = 'mb-3 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200';
+
+            if (data.uid) {
+                historyItem.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-red-600 font-medium">Unassigned Card</span>
+                        <span class="text-sm text-gray-500">${time}</span>
+                    </div>
+                `;
+            } else {
+                historyItem.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="font-medium text-gray-900">${data.student_name}</span>
+                            <span class="text-gray-600 ml-2">${data.lunch_number ? `Lunch #${data.lunch_number}` : 'No lunch'}</span>
+                        </div>
+                        <span class="text-sm text-gray-500">${time}</span>
+                    </div>
+                `;
+            }
+
+            // Remove "No scans yet" message if it exists
+            if (scanHistory.querySelector('.text-center')) {
+                scanHistory.innerHTML = '';
+            }
+
+            // Add new item at the top
+            scanHistory.insertBefore(historyItem, scanHistory.firstChild);
+        }
+
+        socket.on('card_scanned', function(data) {
+            // Clear any existing timeout
+            if (hideTimeout) {
+                clearTimeout(hideTimeout);
+            }
+
+            if (data.uid) {
+                cardStatus.innerHTML = `
+                    <p class="text-red-600 font-medium text-lg">Unassigned Card</p>
+                    <p class="text-sm text-gray-500">This card is not assigned to any student.</p>
+                `;
+                studentInfo.classList.add('hidden');
+
+                // Hide unassigned card message after 5 seconds
+                hideTimeout = setTimeout(resetDisplay, 5000);
+            } else if (data.student_id) {
+                cardStatus.innerHTML = `
+                    <p class="text-green-600 font-medium text-lg">Card Detected!</p>
+                    <p class="text-sm text-gray-500">Student found in database.</p>
+                `;
+
+                studentName.textContent = data.student_name;
+                lunchNumber.textContent = data.lunch_number ? `Lunch #${data.lunch_number}` : 'No lunch ordered';
+
+                studentInfo.classList.remove('hidden');
+
+                // Hide student info after 5 seconds
+                hideTimeout = setTimeout(resetDisplay, 5000);
+            }
+
+            // Add to history
+            addToHistory(data);
+        });
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@ from authlib.integrations.flask_client import OAuth
 import os
 from dotenv import load_dotenv
 import sqlite3
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from pyngrok import ngrok, conf
 from flask_socketio import SocketIO
 import threading
@@ -19,6 +19,8 @@ from sqlite3 import IntegrityError
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import atexit
+from sqlalchemy.sql import func
+from models import Student, TodayLunch, AvailableLunch, GivenLunch
 
 # Load environment variables
 load_dotenv()
@@ -34,6 +36,16 @@ app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Configure SQLAlchemy
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app.instance_path, 'lunch_app.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize extensions
+from extensions import db, migrate, oauth
+db.init_app(app)
+migrate.init_app(app, db)
+oauth.init_app(app)
 
 # Kill any existing ngrok tunnels
 ngrok.kill()
@@ -92,8 +104,9 @@ def nfc_card_scanner():
                         student = c.fetchone()
 
                         if student:
-                            today = datetime.now().strftime("%Y-%m-%d")
-                            c.execute("SELECT * FROM obed WHERE jmeno = ? AND datum = ?", (student['name'], today))
+                            # Use the same date function used by the admin dashboard
+                            test_date = get_lunch_date()
+                            c.execute("SELECT * FROM obed WHERE jmeno = ? AND datum = ?", (student['name'], test_date))
                             lunch = c.fetchone()
 
                             lunch_number = None
@@ -290,7 +303,6 @@ def init_db():
     print("Database initialized successfully")
 
 # Initialize OAuth
-oauth = OAuth(app)
 google = oauth.register(
     name='google',
     client_id=os.getenv('GOOGLE_CLIENT_ID'),
@@ -520,12 +532,88 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
+def get_lunch_date():
+    """Helper function to get the date for lunch queries"""
+    # Return today's date for lunch queries
+    today = datetime.now().strftime("%Y-%m-%d")
+    print(f"Using date for lunch queries: {today}")
+    return today
+
 @app.route('/admin')
+@admin_required
 def admin():
-    """Admin panel route"""
-    if 'user' not in session or session['user'].get('email') not in ALLOWED_ADMIN_EMAILS:
-        return "<script>window.history.back();</script>", 200
-    return render_template('admin.html')
+    """Admin dashboard route"""
+    # Get today's lunch count - using yesterday's date for testing
+    test_date = get_lunch_date()
+
+    # Get lunch data from the SQLite database (obed table)
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM obed WHERE datum = ?", (test_date,))
+    lunch_count_result = c.fetchone()
+    lunch_count = lunch_count_result[0] if lunch_count_result else 0
+
+    # Get available lunches from public_pool
+    c.execute("SELECT SUM(quantity) FROM public_pool")
+    available_count_result = c.fetchone()
+    available_count = available_count_result[0] if available_count_result and available_count_result[0] is not None else 0
+
+    # Get student counts
+    c.execute("SELECT COUNT(*) FROM students")
+    total_students = c.fetchone()[0]
+
+    # Count students with lunch for the test date
+    c.execute("""
+        SELECT COUNT(DISTINCT jmeno) FROM obed 
+        WHERE datum = ? AND (obed_1 = 1 OR obed_2 = 1 OR obed_3 = 1)
+    """, (test_date,))
+    students_with_lunch = c.fetchone()[0]
+
+    students_without_lunch = total_students - students_with_lunch
+
+    # Recent activity - placeholder
+    recent_activity_count = 0
+
+    # Recent lunch assignments
+    c.execute("""
+        SELECT jmeno, 
+            CASE 
+                WHEN obed_1 = 1 THEN 1
+                WHEN obed_2 = 1 THEN 2
+                WHEN obed_3 = 1 THEN 3
+                ELSE NULL
+            END as lunch_id
+        FROM obed 
+        WHERE datum = ? AND (obed_1 = 1 OR obed_2 = 1 OR obed_3 = 1)
+        LIMIT 5
+    """, (test_date,))
+
+    recent_assignments = []
+    for row in c.fetchall():
+        recent_assignments.append({
+            'student_name': row[0],
+            'lunch_id': row[1]
+        })
+
+    conn.close()
+
+    return render_template(
+        'admin.html',
+        lunch_count=lunch_count,
+        available_count=available_count,
+        total_students=total_students,
+        students_with_lunch=students_with_lunch,
+        students_without_lunch=students_without_lunch,
+        recent_activity_count=recent_activity_count,
+        recent_assignments=recent_assignments
+    )
+
+@app.route('/card-scanner')
+@admin_required
+def card_scanner():
+    """Card scanner route (previously admin panel)"""
+    admin_pin = os.getenv('ADMIN_PIN')
+    return render_template('card_scanner.html', admin_pin=admin_pin)
 
 @app.route('/assign-card', methods=['GET', 'POST'])
 def assign_card():
@@ -809,13 +897,21 @@ def delete_student():
 
     return redirect(url_for('assign_card'))
 
+@app.route('/upload-excel-form')
+@admin_required
+def upload_excel_form():
+    """Render the Excel upload form page"""
+    return render_template('upload_excel.html')
 
 if __name__ == '__main__':
     with app.app_context():
         init_db()
-        # Remove the clear_pool_if_new_day() call here
+        # Create SQLAlchemy tables if they don't exist
+        db.create_all()
+        print("SQLAlchemy tables created successfully")
 
     # Set up scheduled tasks before running the app
     setup_scheduled_tasks()
 
     socketio.run(app, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
+
