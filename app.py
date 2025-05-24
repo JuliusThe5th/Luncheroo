@@ -758,7 +758,7 @@ def setup_scheduled_tasks():
     # Schedule PDF scraper to run daily at 7:15 AM
     scheduler.add_job(
         scrape_lunch_pdfs,  # Your existing scraper function
-        trigger=CronTrigger(hour=7, minute=5),
+        trigger=CronTrigger(hour=7, minute=10),
         id='daily_scraper',
         replace_existing=True
     )
